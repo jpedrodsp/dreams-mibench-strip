@@ -406,3 +406,8 @@ If you use this benchmark suite in your research or publications, please cite th
 * **[Original Article (IEEE Xplore)](https://ieeexplore.ieee.org/document/990739)**:
   > M. R. Guthaus, J. S. Ringenberg, D. Ernst, T. M. Austin, T. Mudge, and R. B. Brown, *"MiBench: A free, commercially representative embedded benchmark suite,"* Proceedings of the Fourth Annual IEEE International Workshop on Workload Characterization. WWC-4 (Cat. No.01EX538), Austin, TX, USA, 2001, pp. 3-14. doi: 10.1109/WWC.2001.990739.
 
+Additionally, please cite the official DREAMS architecture dissertation if you utilize this specialized stripped suite:
+
+* **[DREAMS Dissertation (UFPI Institutional Repository)](https://repositorio.ufpi.br/xmlui/handle/123456789/1699)**:
+  > SILVA JUNIOR, Francisco Carlos. *"DREAMS - Um Array Reconfigurável Dinâmico para Sistemas Multiprocessados."* Dissertação de Mestrado, Mestrado em Ciência da Computação, Universidade Federal do Piauí (UFPI), Teresina, PI, Brasil, 2019. **[PDF Document](https://repositorio.ufpi.br/xmlui/bitstream/handle/123456789/1699/dissertacao-Versao_corrigida.pdf?sequence=1)**.
+
