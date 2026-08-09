@@ -5,9 +5,10 @@ This document provides a highly detailed overview, compilation, and execution gu
 ## Table of Contents
 1. [Overview and Objectives](#1-overview-and-objectives)
 2. [Global Compilation Guide](#2-global-compilation-guide)
-3. [General Toolchain and Architecture Requirements](#3-general-toolchain-and-architecture-requirements)
-4. [Benchmark Directory Map](#4-benchmark-directory-map)
-5. [Detailed Workload Specification](#5-detailed-workload-specification)
+3. [Global Execution Runner](#3-global-execution-runner)
+4. [General Toolchain and Architecture Requirements](#4-general-toolchain-and-architecture-requirements)
+5. [Benchmark Directory Map](#5-benchmark-directory-map)
+6. [Detailed Workload Specification](#6-detailed-workload-specification)
    - [Automotive Category](#automotive-category)
      - [Bitcount](#bitcount)
      - [Qsort](#qsort)
@@ -22,34 +23,114 @@ This document provides a highly detailed overview, compilation, and execution gu
      - [FFT](#fft)
    - [Security Category](#security-category)
      - [SHA](#sha)
-6. [Known Issues & Workarounds](#6-known-issues--workarounds)
+7. [Known Issues & Workarounds](#7-known-issues--workarounds)
+8. [Citation](#8-citation)
+
 
 ---
 
 ## 1. Overview and Objectives
 
-The **MiBench** benchmark suite is a set of free, commercially representative embedded benchmarks. This repository contains a **stripped and optimized version** tailored specifically for the **DREAMS** simulation framework. 
+The **MiBench** benchmark suite is a set of free, commercially representative embedded benchmarks, originally sourced from the [University of Michigan MiBench website](https://vhosts.eecs.umich.edu/mibench/). This repository contains a **stripped and optimized version** tailored specifically for the **DREAMS** simulation framework. 
 
 Each program has been compiled statically and cross-compiled (in most cases) for the **RISC-V 64-bit Architecture (`rv64`)** to support execution inside cycle-accurate architecture simulators.
 
 ---
 
-## 2. Global Compilation Guide
+The workspace includes a global compilation script, [`compile.sh`](compile.sh), which automates the build process across all benchmark directories. You can compile either natively on your host machine or via a isolated Docker container.
 
-The workspace includes a global compilation script, [`compile.sh`](compile.sh), which automates the build process across all benchmark directories.
+### Method A: Compilation using Docker (Recommended)
+This is the cleanest approach, as it does not require installing compilers or libraries on your host system. It uses a lightweight Docker image with all toolchains pre-installed.
 
-### Compilation Steps:
+1. Ensure Docker is installed and running on your host machine.
+2. Run the automatic runner script from the root directory:
+   ```bash
+   ./build_in_docker.sh
+   ```
+This script will build the Docker image (`dreams-mibench-build`), mount the current workspace directory into the container, and compile all benchmarks. The output binaries will be automatically centralized in the `dist/bin/` folder on your host machine.
+
+### Method B: Native Compilation on Host Machine
 1. Ensure your RISC-V cross-compiler (`riscv64-unknown-linux-gnu-gcc`) is installed and available in your environment path.
 2. Run the main compilation script from the repository root:
    ```bash
    ./compile.sh
    ```
 
-The script iterates through each benchmark directory, runs a `make clean` to remove legacy artifacts, and invokes `make` to compile the targets.
+The build scripts iterate through each benchmark directory, run a `make clean` to remove legacy artifacts, invoke `make` to compile the targets, and centralize all successfully compiled binaries under the **`dist/bin/`** folder.
+
+### 📁 Centralized Outputs
+Regardless of the compilation method used, all compiled executable binaries are collected in:
+* **`dist/bin/`**
+
+This directory is ignored by Git and is designed to provide a clean, unified location for simulator deployment (e.g., inside DREAMS or gem5).
 
 ---
 
-## 3. General Toolchain and Architecture Requirements
+## 3. Global Execution Runner
+
+The workspace includes a global execution script, [`benchmark.sh`](benchmark.sh), which automates executing the benchmark workloads across all directories.
+
+### Usage
+Run the script from the repository root, passing an optional workload size (`small` or `large`). If no workload size is provided, it defaults to `small`:
+
+```bash
+# Run all 'small' workloads (default)
+./benchmark.sh small
+
+# Run all 'large' workloads
+./benchmark.sh large
+```
+
+### 💡 Execution Mechanism & gem5 Simulation Guide
+Since these binaries are compiled for **RISC-V 64-bit** and **linked statically (`-static`)**, they are 100% compatible with simulator frameworks such as **gem5** (running in Syscall Emulation / SE mode) and **DREAMS**. 
+
+You do not need an active QEMU installation if you are simulating these binaries inside gem5.
+
+#### Running in gem5 Syscall Emulation (SE) Mode
+You can invoke the centralized static RISC-V binaries directly from your gem5 python configurations or shell scripts using the standard `se.py` configuration template:
+
+```bash
+# General gem5 command template:
+gem5.opt configs/example/se.py \
+    -c <path_to_centralized_binary> \
+    -o "<arguments_and_inputs>" \
+    --output=<redirected_stdout_file>
+```
+
+#### 📋 gem5 Simulation Reference Table (Cheat Sheet)
+Use this reference table to map the executable binary and workload arguments in your gem5 architecture scripts:
+
+| Benchmark | Target Binary | Small Workload Arguments (`-o`) | Large Workload Arguments (`-o`) | Input File Path |
+| :--- | :--- | :--- | :--- | :--- |
+| **Bitcount** | `dist/bin/bitcnts_riscv` | `"75000"` | `"1125000"` | *None (algorithmic)* |
+| **Qsort** | `dist/bin/qsort_small_riscv` (small)<br>`dist/bin/qsort_large_riscv` (large) | `"automotive/qsort/input_small.dat"` | `"automotive/qsort/input_large.dat"` | Located in `automotive/qsort/` |
+| **Susan** | `dist/bin/susan` *(if compiled for RISCV)* | `"automotive/susan/input_small.pgm output_small.smoothing.pgm -s"` | `"automotive/susan/input_large.pgm output_large.smoothing.pgm -s"` | Located in `automotive/susan/` |
+| **JPEG Encode** | `dist/bin/cjpeg` | `"-dct int -progressive -opt -outfile output_small_encode.jpg consumer/jpeg/input_small.ppm"` | `"-dct int -progressive -opt -outfile output_large_encode.jpg consumer/jpeg/input_large.ppm"` | Located in `consumer/jpeg/` |
+| **JPEG Decode** | `dist/bin/djpeg` | `"-dct int -ppm -outfile output_small_decode.ppm consumer/jpeg/output_small_encode.jpg"` | `"-dct int -ppm -outfile output_large_decode.ppm consumer/jpeg/output_large_encode.jpg"` | Generated dynamically |
+| **Dijkstra** | `dist/bin/dijkstra_small_riscv` (small)<br>`dist/bin/dijkstra_large_riscv` (large) | `"network/dijkstra/input_small"` | `"network/dijkstra/input_large"` | Located in `network/dijkstra/` |
+| **Patricia** | `dist/bin/patricia_riscv` | `"network/patricia/small.udp"` | `"network/patricia/large.udp"` | Located in `network/patricia/` |
+| **CRC32** | `dist/bin/crc_riscv` | `"telecomm/CRC32/input_small.pcm"` | `"telecomm/CRC32/input_large.pcm"` | *Custom PCM files (adpcm missing)* |
+| **FFT** | `dist/bin/fft` | `"4 4096"` | `"8 32768"` | *None (algorithmic)* |
+| **SHA** | `dist/bin/sha` | `"security/sha/input_small.dat"` | `"security/sha/input_large.dat"` | Located in `security/sha/` |
+
+---
+
+### 📂 Centralized Execution Outputs
+Regardless of where you run the execution scripts, **`benchmark.sh`** automatically cleans, prepares, and populates a centralized **`output/`** directory at the project root. 
+To prevent name collisions between different benchmarks (as most of them generate files named `output_small.txt` or `output_large.txt`), all files moved to the `output/` directory are prefixed with their respective benchmark's subdirectory name:
+* **`output/<benchmark_name>_<original_filename>`**
+
+Examples of generated outputs in `output/`:
+* `output/bitcount_output_small.txt`
+* `output/qsort_output_small.txt`
+* `output/jpeg_output_small_encode.jpg`
+* `output/dijkstra_output_small.txt`
+
+This directory is ignored by Git to prevent committing execution files.
+
+---
+
+## 4. General Toolchain and Architecture Requirements
 
 To run, compile, and analyze these benchmarks, the environment must fulfill the following:
 * **Host Compiler**: `gcc` (used for certain native targets like Susan).
@@ -60,7 +141,7 @@ To run, compile, and analyze these benchmarks, the environment must fulfill the 
 
 ---
 
-## 4. Benchmark Directory Map
+## 5. Benchmark Directory Map
 
 Below is a summary of the 9 benchmark programs included in this stripped suite:
 
@@ -78,7 +159,7 @@ Below is a summary of the 9 benchmark programs included in this stripped suite:
 
 ---
 
-## 5. Detailed Workload Specification
+## 6. Detailed Workload Specification
 
 ### Automotive Category
 
@@ -285,7 +366,7 @@ Below is a summary of the 9 benchmark programs included in this stripped suite:
 
 ---
 
-## 6. Known Issues & Workarounds
+## 7. Known Issues & Workarounds
 
 While exploring and executing this reduced/stripped version, take note of the following environment discrepancies:
 
@@ -304,3 +385,13 @@ While exploring and executing this reduced/stripped version, take note of the fo
   -gcc -static -O4 -o susan susan.c -lm
   +riscv64-unknown-linux-gnu-gcc -static -O4 -o susan_riscv susan.c -lm
   ```
+
+---
+
+## 8. Citation
+
+If you use this benchmark suite in your research or publications, please cite the original MiBench paper:
+
+* **[Original Article (IEEE Xplore)](https://ieeexplore.ieee.org/document/990739)**:
+  > M. R. Guthaus, J. S. Ringenberg, D. Ernst, T. M. Austin, T. Mudge, and R. B. Brown, *"MiBench: A free, commercially representative embedded benchmark suite,"* Proceedings of the Fourth Annual IEEE International Workshop on Workload Characterization. WWC-4 (Cat. No.01EX538), Austin, TX, USA, 2001, pp. 3-14. doi: 10.1109/WWC.2001.990739.
+
