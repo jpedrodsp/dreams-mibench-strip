@@ -1,6 +1,12 @@
-# MiBench Benchmark (Stripped Version for Dreams)
+# MiBench Benchmark (Stripped Version for DREAMS)
 
-This repository contains a reduced and customized set of MiBench Benchmarks, originally sourced from the [University of Michigan MiBench website](https://vhosts.eecs.umich.edu/mibench/), optimized for the **DREAMS** architecture simulations.
+This repository contains a reduced and customized set of MiBench Benchmarks, originally sourced from the [University of Michigan MiBench website](https://vhosts.eecs.umich.edu/mibench/), optimized for **DREAMS (Dynamic Reconfigurable Array for Multi-Core Systems)** architecture simulations.
+
+### 🧠 What is DREAMS?
+**DREAMS** is a dynamic reconfigurable architecture integrated into a multi-core processor, modeled on top of the **gem5** simulator incorporating a Network-on-Chip (NoC) fabric.
+* **Shared Reconfigurable Array**: It features a reconfigurable array shared among 4 processing cores, organized into 4 reconfigurable columns of 3 processing elements and 1 memory access (Load/Store) unit each.
+* **Transparent Binary Translator**: It includes a dynamic, hardware-level binary translator that converts standard compiled instructions into optimized configurations for the reconfigurable array at runtime.
+* **Software Compatibility**: Because of the transparent binary translator, there is zero need to rewrite or recompile benchmark software. Standard statically-linked RISC-V binaries (like those compiled in this repository) run directly and benefit from reconfigurable acceleration.
 
 ## Quick Start & Benchmarks Directory
 For a highly detailed compilation, cross-compilation, and execution guide on all **9** included benchmark workloads, please refer to the main documentation file:

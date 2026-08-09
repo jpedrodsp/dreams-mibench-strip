@@ -1,6 +1,6 @@
-# MiBench Benchmarks: Stripped Version for DREAMS Simulation
+# MiBench Benchmarks: Stripped Version for DREAMS NoC Architecture (on gem5)
 
-This document provides a highly detailed overview, compilation, and execution guide for the reduced and adapted set of MiBench benchmarks used in the **DREAMS** architecture simulations.
+This document provides a highly detailed overview, compilation, and execution guide for the reduced and adapted set of MiBench benchmarks used in simulations of the **DREAMS** NoC-based reconfigurable architecture (modeled on top of gem5).
 
 ## Table of Contents
 1. [Overview and Objectives](#1-overview-and-objectives)
@@ -31,9 +31,20 @@ This document provides a highly detailed overview, compilation, and execution gu
 
 ## 1. Overview and Objectives
 
-The **MiBench** benchmark suite is a set of free, commercially representative embedded benchmarks, originally sourced from the [University of Michigan MiBench website](https://vhosts.eecs.umich.edu/mibench/). This repository contains a **stripped and optimized version** tailored specifically for the **DREAMS** simulation framework. 
+The **MiBench** benchmark suite is a set of free, commercially representative embedded benchmarks, originally sourced from the [University of Michigan MiBench website](https://vhosts.eecs.umich.edu/mibench/). This repository contains a **stripped and optimized version** tailored specifically for the **DREAMS (Dynamic Reconfigurable Array for Multi-Core Systems)** architecture.
 
-Each program has been compiled statically and cross-compiled (in most cases) for the **RISC-V 64-bit Architecture (`rv64`)** to support execution inside cycle-accurate architecture simulators.
+### 🧠 The DREAMS Architecture & gem5 Modeling Context
+**DREAMS** is a high-performance, area-efficient dynamic reconfigurable architecture integrated into a multi-core processor. It is fully modeled and simulated on top of the **gem5** cycle-accurate simulator, incorporating a Network-on-Chip (NoC) fabric for inter-core communication and memory routing.
+
+Key architectural highlights of DREAMS include:
+* **Shared Reconfigurable Array**: Rather than attaching a dedicated reconfigurable array to each processing core (which causes high area overhead), DREAMS features a single reconfigurable array shared among all 4 processing cores.
+* **Column-Based Organization**: The shared array is organized into 4 reconfigurable columns. Each column consists of:
+  * **3 Processing Elements (PEs)**: Responsible for arithmetic/logic computations.
+  * **1 Load and Store Unit (LSU)**: For direct, optimized memory access.
+* **Hardware-Level Dynamic Binary Translator**: DREAMS incorporates an on-the-fly, hardware-level binary translator. At runtime, as a core executes native software, the binary translator transparently identifies compute-heavy instruction loops and maps them onto the shared reconfigurable columns.
+* **Full Software Transparency**: Because translation and reconfiguration occur entirely in hardware at runtime, there is no need to write custom compiler backends or manually rewrite benchmark software.
+
+Standard, statically-compiled **RISC-V 64-bit Architecture (`rv64`)** binaries—such as those centralized in this repository—are fully compatible out-of-the-box, running directly in gem5 while benefiting from the DREAMS reconfigurable acceleration.
 
 ---
 
@@ -62,7 +73,7 @@ The build scripts iterate through each benchmark directory, run a `make clean` t
 Regardless of the compilation method used, all compiled executable binaries are collected in:
 * **`dist/bin/`**
 
-This directory is ignored by Git and is designed to provide a clean, unified location for simulator deployment (e.g., inside DREAMS or gem5).
+This directory is ignored by Git and is designed to provide a clean, unified location for simulator deployment (e.g., inside the DREAMS NoC model running on gem5).
 
 ---
 
@@ -82,7 +93,7 @@ Run the script from the repository root, passing an optional workload size (`sma
 ```
 
 ### 💡 Execution Mechanism & gem5 Simulation Guide
-Since these binaries are compiled for **RISC-V 64-bit** and **linked statically (`-static`)**, they are 100% compatible with simulator frameworks such as **gem5** (running in Syscall Emulation / SE mode) and **DREAMS**. 
+Since these binaries are compiled for **RISC-V 64-bit** and **linked statically (`-static`)**, they are 100% compatible with the **gem5** simulator running in Syscall Emulation (SE) mode loaded with the **DREAMS** reconfigurable NoC architecture. 
 
 You do not need an active QEMU installation if you are simulating these binaries inside gem5.
 
@@ -380,7 +391,7 @@ While exploring and executing this reduced/stripped version, take note of the fo
 
 ### 2. Native Compilation of Susan
 * **Problem**: The Makefile in `automotive/susan` compiles using native `gcc` rather than `riscv64-unknown-linux-gnu-gcc`.
-* **Workaround**: If you require Susan to be simulated in a RISC-V environment (such as gem5 or DREAMS), edit the Makefile in `automotive/susan/Makefile` to change the compiler definition:
+* **Workaround**: If you require Susan to be simulated in a RISC-V environment (such as the DREAMS NoC model on gem5), edit the Makefile in `automotive/susan/Makefile` to change the compiler definition:
   ```diff
   -gcc -static -O4 -o susan susan.c -lm
   +riscv64-unknown-linux-gnu-gcc -static -O4 -o susan_riscv susan.c -lm
